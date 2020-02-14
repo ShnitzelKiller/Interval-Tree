@@ -2,7 +2,7 @@
 // Created by James Noeckel on 2/13/20.
 //
 
-#include "geometry/IntervalTree.h"
+#include "IntervalTree.h"
 #include <iostream>
 
 int main(int argc, char **argv) {
