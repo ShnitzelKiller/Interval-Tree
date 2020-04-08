@@ -169,6 +169,9 @@ public:
     bool operator==(const IntervalIterator<T, V> &other) {
         return val_ == other.val_;
     }
+    const value_type *operator->() {
+        return val_;
+    }
 private:
     const value_type* val_;
     std::shared_ptr<IntervalIterator<T, V>> next_;

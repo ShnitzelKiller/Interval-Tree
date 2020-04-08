@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
         auto result = tree.query(50.732);
         std::cout << "result after construction: ";
         for (auto it=result.first; it != result.second; ++it) {
-            std::cout << (*it).second << ", ";
+            std::cout << it->second << ", ";
         }
         success = success && distance(result.first, result.second) == 2;
         std::cout << std::endl;
@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
         auto result = tree.query(50.732);
         std::cout << "result after insertion: ";
         for (auto it=result.first; it != result.second; ++it) {
-            std::cout << (*it).second << ", ";
+            std::cout << it->second << ", ";
         }
         success = success && distance(result.first, result.second) == 4;
         std::cout << std::endl;
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
         auto result = tree.query(50.732);
         std::cout << "result after rebuild: ";
         for (auto it=result.first; it != result.second; ++it) {
-            std::cout << (*it).second << ", ";
+            std::cout << it->second << ", ";
         }
         std::cout << std::endl;
         success = success && distance(result.first, result.second) == 2;
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
             auto result = tree.query(point);
             std::cout << "result at " << point << ": ";
             for (auto it=result.first; it != result.second; ++it) {
-                std::cout << (*it).second << ", ";
+                std::cout << it->second << ", ";
             }
             std::cout << std::endl;
             success = success && distance(result.first, result.second) == 2;
