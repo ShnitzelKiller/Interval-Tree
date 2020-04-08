@@ -13,13 +13,15 @@ int main(int argc, char **argv) {
     }
 
     //construction
-    IntervalTree<float, int> tree(intervals);
+    IntervalTree<float, int> tree(intervals.begin(), intervals.end());
+    bool success = true;
     {
         auto result = tree.query(50.732);
         std::cout << "result after construction: ";
-        for (const auto &interval : result) {
-            std::cout << interval.second << ", ";
+        for (auto it=result.first; it != result.second; ++it) {
+            std::cout << (*it).second << ", ";
         }
+        success = success && distance(result.first, result.second) == 2;
         std::cout << std::endl;
     }
 
@@ -30,9 +32,10 @@ int main(int argc, char **argv) {
         tree.insert(Interval<float>(10, 30), 2);
         auto result = tree.query(50.732);
         std::cout << "result after insertion: ";
-        for (const auto &interval : result) {
-            std::cout << interval.second << ", ";
+        for (auto it=result.first; it != result.second; ++it) {
+            std::cout << (*it).second << ", ";
         }
+        success = success && distance(result.first, result.second) == 4;
         std::cout << std::endl;
     }
 
@@ -40,18 +43,20 @@ int main(int argc, char **argv) {
     {
         tree.clear();
         auto result = tree.query(50.732);
-        std::cout << "result size after clear: " << result.size() << std::endl;
+        std::cout << "result size after clear: " << distance(result.first, result.second) << std::endl;
+        success = success && result.first == result.second;
     }
 
     //build
     {
-        tree.build(intervals);
+        tree.build(intervals.begin(), intervals.end());
         auto result = tree.query(50.732);
         std::cout << "result after rebuild: ";
-        for (const auto &interval : result) {
-            std::cout << interval.second << ", ";
+        for (auto it=result.first; it != result.second; ++it) {
+            std::cout << (*it).second << ", ";
         }
         std::cout << std::endl;
+        success = success && distance(result.first, result.second) == 2;
     }
 
     //many queries
@@ -61,13 +66,14 @@ int main(int argc, char **argv) {
             float point = i+0.25f;
             auto result = tree.query(point);
             std::cout << "result at " << point << ": ";
-            for (const auto &interval : result) {
-                std::cout << interval.second << ", ";
+            for (auto it=result.first; it != result.second; ++it) {
+                std::cout << (*it).second << ", ";
             }
             std::cout << std::endl;
+            success = success && distance(result.first, result.second) == 2;
         }
     }
 
 
-    return 0;
+    return !success;
 }
