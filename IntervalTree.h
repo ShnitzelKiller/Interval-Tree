@@ -18,8 +18,12 @@ struct Interval {
     T end;
 };
 
+/**
+ * Query result structure: call begin() and end() to access iterator over result pairs.
+ * Only valid as long as the interval tree is unchanged since calling query().
+ */
 template <typename T, typename V>
-class IntervalIterator;
+class IntervalTreeResult;
 
 /**
  * An interval tree allows speedy intersection of a point on the number line with a collection of (possibly overlapping) intervals.
@@ -29,7 +33,7 @@ class IntervalIterator;
  */
 template<typename T, typename V>
 class IntervalTree {
-    friend class IntervalIterator<T, V>;
+    friend class IntervalTreeResult<T, V>;
 public:
     IntervalTree() = default;
 
@@ -68,7 +72,7 @@ public:
      * @param val query point
      * @return start and end forward iterators to solution pairs of intervals and values.
      */
-    std::pair<IntervalIterator<T, V>, IntervalIterator<T, V>> query(T val) const;
+    IntervalTreeResult<T, V> query(T val) const;
 
     /**
      * Clears all data and resets the interval tree
@@ -130,11 +134,12 @@ void IntervalTree<T, V>::insert(const Interval<T> &interval, const V &value) {
 }
 
 template<typename T, typename V>
-std::pair<IntervalIterator<T, V>, IntervalIterator<T, V>> IntervalTree<T, V>::query(T val) const {
+IntervalTreeResult<T, V> IntervalTree<T, V>::query(T val) const {
+    IntervalTreeResult<T, V> result;
     if (root_) {
-        return std::make_pair(root_->query(val), IntervalIterator<T, V>());
+        root_->query(val, result);
     }
-    return std::make_pair(IntervalIterator<T, V>(), IntervalIterator<T, V>());
+    return result;
 }
 
 template<typename T, typename V>
@@ -142,57 +147,61 @@ void IntervalTree<T, V>::clear() {
     root_.reset(nullptr);
 }
 
-//iterators
+//result type
 
 template <typename T, typename V>
-class IntervalIterator {
-public:
-    IntervalIterator() : val_(nullptr), next_(nullptr) {}
-    using value_type = std::pair<Interval<T>, V>;
-    value_type operator*() {
-        return *val_;
-    }
-    IntervalIterator<T, V> &operator++() {
-        val_ = next_->val_;
-        next_ = next_->next_;
-        return *this;
-    }
-    IntervalIterator<T, V> operator++(int) {
-        IntervalIterator<T, V> copy = *this;
-        val_ = next_->val_;
-        next_ = next_->next_;
-        return copy;
-    }
-    bool operator!=(const IntervalIterator<T, V> &other) {
-        return val_ != other.val_;
-    }
-    bool operator==(const IntervalIterator<T, V> &other) {
-        return val_ == other.val_;
-    }
-    const value_type *operator->() {
-        return val_;
-    }
-private:
-    const value_type* val_;
-    std::shared_ptr<IntervalIterator<T, V>> next_;
-    friend class IntervalTree<T, V>::TreeNode;
+class IntervalTreeResult {
+        friend class IntervalTree<T, V>::TreeNode;
+    public:
+        using value_type = std::pair<Interval<T>, V>;
+        struct Iterator {
+            friend class IntervalTreeResult<T, V>;
+            value_type operator*() {
+                return *(parent_.results_[index_]);
+            }
+            const value_type *operator->() {
+                return parent_.results_[index_];
+            }
+            Iterator &operator++() {
+                index_++;
+                return *this;
+            }
+            Iterator operator++(int) {
+                Iterator copy = *this;
+                ++*this;
+                return copy;
+            }
+            bool operator==(const Iterator &other) {
+                return index_ == other.index_;
+            }
+            bool operator!=(const Iterator &other) {
+                return index_ != other.index_;
+            }
+        private:
+            Iterator(size_t index, const IntervalTreeResult<T, V> &parent) : index_(index), parent_(parent) {}
+            size_t index_;
+            const IntervalTreeResult<T, V> &parent_;
+        };
+        /** start iterator of results */
+        Iterator begin() const {
+            return Iterator(0, *this);
+        }
+        /** past-the-end iterator of results */
+        Iterator end() const {
+            return Iterator(results_.size(), *this);
+        }
+        /** number of hits */
+        size_t size() const {
+            return results_.size();
+        }
+    private:
+        std::vector<const value_type*> results_;
 };
-
-template <typename T, typename V>
-size_t distance(IntervalIterator<T, V> &first, IntervalIterator<T, V> &end) {
-    size_t dist = 0;
-    for (auto it = first; it != end; ++it) {
-        dist++;
-    }
-    return dist;
-}
 
 //underlying structure
 
 template<typename T, typename V>
 struct IntervalTree<T, V>::TreeNode {
-    //friend class IntervalIterator<T, V>;
-
     struct IntervalComp {
         IntervalComp(const std::vector<std::pair<Interval<T>, V>> &intervals, bool sort_by_start) : intervals_(
                 intervals), sort_by_start_(sort_by_start) {}
@@ -284,34 +293,30 @@ struct IntervalTree<T, V>::TreeNode {
         }
     }
 
-    IntervalIterator<T, V> query(T val) const {
-        IntervalIterator<T, V> new_results;
+    void query(T val, IntervalTreeResult<T, V> &results) const {
         if (val <= x_center_) {
-            if (left_) {
-                new_results = left_->query(val);
-            }
             for (auto it = index_sorted_by_start_.begin(); it != index_sorted_by_start_.end(); it++) {
                 if (center_[*it].first.start <= val) {
-                    new_results.next_ = std::make_shared<IntervalIterator<T, V>>(new_results);
-                    new_results.val_ = &center_[*it];
+                    results.results_.push_back(&center_[*it]);
                 } else {
                     break;
                 }
+            }
+            if (left_) {
+                left_->query(val, results);
             }
         } else {
-            if (right_) {
-                new_results = right_->query(val);
-            }
             for (auto it = index_sorted_by_end_.rbegin(); it != index_sorted_by_end_.rend(); it++) {
                 if (center_[*it].first.end > val) {
-                    new_results.next_ = std::make_shared<IntervalIterator<T, V>>(new_results);
-                    new_results.val_ = &center_[*it];
+                    results.results_.push_back(&center_[*it]);
                 } else {
                     break;
                 }
             }
+            if (right_) {
+                right_->query(val, results);
+            }
         }
-        return new_results;
     }
 
     std::unique_ptr<TreeNode> clone() const {
